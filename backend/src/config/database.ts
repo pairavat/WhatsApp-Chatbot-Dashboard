@@ -36,7 +36,8 @@ export const connectDatabase = async (): Promise<void> => {
     await mongoose.connect(mongoUri, options);
 
     // Verify connection
-    if (mongoose.connection.readyState === 1) {
+    const readyState = mongoose.connection.readyState as number;
+    if (readyState === 1) {
       logger.info('✅ MongoDB connection established successfully');
       logger.info(`   Database: ${mongoose.connection.name || 'default'}`);
       logger.info(`   Host: ${mongoose.connection.host}:${mongoose.connection.port || 'default'}`);

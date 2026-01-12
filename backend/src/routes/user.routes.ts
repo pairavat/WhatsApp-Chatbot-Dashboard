@@ -98,7 +98,8 @@ router.post('/', requirePermission(Permission.CREATE_USER), async (req: Request,
     const currentUser = req.user!;
     console.log('Current user:', { id: currentUser._id, role: currentUser.role, companyId: currentUser.companyId });
     
-    const { firstName, lastName, email, password, phone, role, companyId, departmentId } = req.body;
+    const { firstName, lastName, email, password, phone, role, departmentId } = req.body;
+    let companyId = req.body.companyId;
 
     // Validation
     if (!firstName || !lastName || !email || !password || !role) {

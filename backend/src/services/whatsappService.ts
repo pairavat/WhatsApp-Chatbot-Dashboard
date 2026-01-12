@@ -1,5 +1,4 @@
 import axios from 'axios';
-import Company from '../models/Company';
 
 export async function sendWhatsAppMessage(
   company: any,

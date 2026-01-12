@@ -5,13 +5,13 @@ import mongoose from 'mongoose';
  * Middleware to check if database is connected before processing requests
  */
 export const requireDatabaseConnection = (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): void => {
   // Check if mongoose is connected
   if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({
+    res.status(503).json({
       success: false,
       message: 'Database connection not available. Please check server logs.',
       error: 'Database not connected',
@@ -23,6 +23,7 @@ export const requireDatabaseConnection = (
         3: 'disconnecting'
       }
     });
+    return;
   }
 
   next();
@@ -39,15 +40,18 @@ export const isDatabaseConnected = (): boolean => {
  * Get database connection status info
  */
 export const getDatabaseStatus = () => {
+  const stateMap: Record<number, string> = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting',
+    99: 'uninitialized'
+  };
+  
   return {
     connected: mongoose.connection.readyState === 1,
     readyState: mongoose.connection.readyState,
-    state: {
-      0: 'disconnected',
-      1: 'connected',
-      2: 'connecting',
-      3: 'disconnecting'
-    }[mongoose.connection.readyState],
+    state: stateMap[mongoose.connection.readyState] || 'unknown',
     host: mongoose.connection.host,
     port: mongoose.connection.port,
     name: mongoose.connection.name

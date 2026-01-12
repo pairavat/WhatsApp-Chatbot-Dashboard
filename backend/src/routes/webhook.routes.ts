@@ -1,8 +1,6 @@
 import express, { Request, Response } from 'express';
 import { requireDatabaseConnection } from '../middleware/dbConnection';
 import Company from '../models/Company';
-import Grievance from '../models/Grievance';
-import Appointment from '../models/Appointment';
 import { processWhatsAppMessage } from '../services/chatbotEngine';
 import { logUserAction } from '../utils/auditLogger';
 import { AuditAction } from '../config/constants';

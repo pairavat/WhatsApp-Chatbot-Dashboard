@@ -66,9 +66,9 @@ const checkDatabase = (_req: Request, res: Response, next: () => void) => {
 };
 
 // Webhook verification (GET request from WhatsApp)
-// This endpoint is called by WhatsApp Cloud API to verify the webhook
+// Simplified to match required verification logic
 router.get('/', (req: Request, res: Response) => {
-  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'zillaparishadbot_verify';
+  const VERIFY_TOKEN = 'zillaparishadbot_verify';
 
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];

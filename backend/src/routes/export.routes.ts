@@ -20,12 +20,12 @@ router.use(requireDatabaseConnection);
 // @route   GET /api/export/companies
 // @desc    Export companies to Excel (SuperAdmin only)
 // @access  Private/SuperAdmin
-router.get('/companies', requirePermission(Permission.EXPORT_ALL_DATA), async (req: Request, res: Response) => {
+router.get('/companies', requirePermission(Permission.EXPORT_ALL_DATA), async (req: Request, res: Response): Promise<void> => {
   try {
     const currentUser = req.user!;
 
     if (currentUser.role !== UserRole.SUPER_ADMIN) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Only SuperAdmin can export companies'
       });
@@ -120,7 +120,7 @@ router.get('/departments', requirePermission(Permission.EXPORT_DATA), async (req
 // @route   GET /api/export/users
 // @desc    Export users to Excel
 // @access  Private
-router.get('/users', requirePermission(Permission.EXPORT_DATA), async (req: Request, res: Response) => {
+router.get('/users', requirePermission(Permission.EXPORT_DATA), async (req: Request, res: Response): Promise<void> => {
   try {
     const currentUser = req.user!;
     const { companyId, departmentId } = req.query;
@@ -136,10 +136,11 @@ router.get('/users', requirePermission(Permission.EXPORT_DATA), async (req: Requ
     } else if (currentUser.role === UserRole.DEPARTMENT_ADMIN) {
       query.departmentId = currentUser.departmentId;
     } else {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied'
       });
+      return;
     }
 
     const users = await User.find(query)

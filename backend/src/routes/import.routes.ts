@@ -9,8 +9,6 @@ import { AuditAction, Permission, UserRole } from '../config/constants';
 import Company from '../models/Company';
 import Department from '../models/Department';
 import User from '../models/User';
-import Grievance from '../models/Grievance';
-import Appointment from '../models/Appointment';
 import bcrypt from 'bcryptjs';
 
 const router = express.Router();
@@ -46,22 +44,24 @@ router.post(
   '/companies',
   requirePermission(Permission.IMPORT_DATA),
   upload.single('file'),
-  async (req: Request, res: Response) => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
 
       if (currentUser.role !== UserRole.SUPER_ADMIN) {
-        return res.status(403).json({
+        res.status(403).json({
           success: false,
           message: 'Only SuperAdmin can import companies'
         });
+        return;
       }
 
       if (!req.file) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'No file uploaded'
         });
+        return;
       }
 
       const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
@@ -79,7 +79,7 @@ router.post(
       for (let i = 0; i < data.length; i++) {
         const row = data[i] as any;
         try {
-          const company = await Company.create({
+          await Company.create({
             name: row.name || row.companyName,
             companyType: row.companyType,
             contactEmail: row.contactEmail || row.email,
@@ -134,15 +134,16 @@ router.post(
   '/departments',
   requirePermission(Permission.IMPORT_DATA),
   upload.single('file'),
-  async (req: Request, res: Response) => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
 
       if (!req.file) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'No file uploaded'
         });
+        return;
       }
 
       const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
@@ -171,7 +172,7 @@ router.post(
             throw new Error('Company ID is required');
           }
 
-          const department = await Department.create({
+          await Department.create({
             companyId,
             name: row.name || row.departmentName,
             description: row.description,
@@ -220,15 +221,16 @@ router.post(
   '/users',
   requirePermission(Permission.IMPORT_DATA),
   upload.single('file'),
-  async (req: Request, res: Response) => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
 
       if (!req.file) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'No file uploaded'
         });
+        return;
       }
 
       const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
@@ -262,7 +264,7 @@ router.post(
 
           const hashedPassword = await bcrypt.hash(row.password || 'TempPassword123!', 10);
 
-          const user = await User.create({
+          await User.create({
             firstName: row.firstName || row.first_name,
             lastName: row.lastName || row.last_name,
             email: row.email,
@@ -310,7 +312,7 @@ router.post(
 // @route   GET /api/import/template/:type
 // @desc    Download import template
 // @access  Private
-router.get('/template/:type', requirePermission(Permission.IMPORT_DATA), async (req: Request, res: Response) => {
+router.get('/template/:type', requirePermission(Permission.IMPORT_DATA), async (req: Request, res: Response): Promise<void> => {
   try {
     const { type } = req.params;
 
@@ -358,10 +360,11 @@ router.get('/template/:type', requirePermission(Permission.IMPORT_DATA), async (
         ];
         break;
       default:
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Invalid template type'
         });
+        return;
     }
 
     const workbook = XLSX.utils.book_new();

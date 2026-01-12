@@ -24,6 +24,8 @@ import importRoutes from './routes/import.routes';
 import exportRoutes from './routes/export.routes';
 import auditRoutes from './routes/audit.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import assignmentRoutes from './routes/assignment.routes';
+import statusRoutes from './routes/status.routes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -138,6 +140,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/status', statusRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // ================================
