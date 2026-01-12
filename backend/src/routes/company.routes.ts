@@ -1,0 +1,319 @@
+import express, { Request, Response } from 'express';
+import Company from '../models/Company';
+import User from '../models/User';
+import { authenticate } from '../middleware/auth';
+import { requireSuperAdmin } from '../middleware/rbac';
+import { logUserAction } from '../utils/auditLogger';
+import { AuditAction, UserRole } from '../config/constants';
+import bcrypt from 'bcryptjs';
+
+const router = express.Router();
+
+// All routes require authentication
+router.use(authenticate);
+
+// @route   GET /api/companies
+// @desc    Get all companies (SuperAdmin only)
+// @access  Private/SuperAdmin
+router.get('/', requireSuperAdmin, async (req: Request, res: Response) => {
+  try {
+    const { page = 1, limit = 20, search, companyType, isActive } = req.query;
+
+    const query: any = {};
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { companyId: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (companyType) {
+      query.companyType = companyType;
+    }
+
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    }
+
+    const companies = await Company.find(query)
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit))
+      .sort({ createdAt: -1 });
+
+    const total = await Company.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: {
+        companies,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit))
+        }
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch companies',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/companies
+// @desc    Create new company with admin (SuperAdmin only)
+// @access  Private/SuperAdmin
+router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
+  try {
+    console.log('Company creation request body:', req.body);
+    
+    const { 
+      name, 
+      companyType, 
+      contactEmail, 
+      contactPhone, 
+      address, 
+      enabledModules,
+      theme,
+      whatsappConfig,
+      admin // Admin user data
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !companyType || !contactEmail || !contactPhone) {
+      console.log('Validation failed: missing required fields');
+      res.status(400).json({
+        success: false,
+        message: 'Please provide all required company fields'
+      });
+      return;
+    }
+
+    console.log('Creating company with data:', { name, companyType, contactEmail, contactPhone });
+
+    // Create company
+    const company = await Company.create({
+      name,
+      companyType,
+      contactEmail,
+      contactPhone,
+      address,
+      enabledModules: enabledModules || [],
+      theme: theme || {
+        primaryColor: '#0f4c81',
+        secondaryColor: '#1a73e8'
+      },
+      whatsappConfig,
+      isActive: true,
+      isSuspended: false,
+      isDeleted: false
+    });
+
+    console.log('Company created successfully:', company._id);
+
+    // Create company admin if admin data is provided
+    let adminUser = null;
+    if (admin && admin.email && admin.password && admin.firstName && admin.lastName) {
+      console.log('Creating admin user for company:', admin.email);
+      
+      // Hash password
+      const salt = await bcrypt.genSalt(12);
+      const hashedPassword = await bcrypt.hash(admin.password, salt);
+
+      // Create admin user
+      adminUser = await User.create({
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        email: admin.email,
+        password: hashedPassword,
+        phone: admin.phone || contactPhone,
+        role: UserRole.COMPANY_ADMIN,
+        companyId: company._id,
+        isActive: true,
+        isEmailVerified: true
+      });
+
+      console.log('Admin user created successfully:', adminUser._id);
+    }
+
+    // Log company creation
+    try {
+      await logUserAction(
+        req,
+        AuditAction.CREATE,
+        'Company',
+        company._id.toString(),
+        { 
+          companyName: company.name,
+          companyType: company.companyType,
+          adminCreated: !!adminUser
+        }
+      );
+    } catch (logError) {
+      console.error('Failed to log company creation:', logError);
+    }
+
+    // Log admin creation if admin was created
+    if (adminUser) {
+      try {
+        await logUserAction(
+          req,
+          AuditAction.CREATE,
+          'User',
+          adminUser._id.toString(),
+          { 
+            email: adminUser.email,
+            role: adminUser.role,
+            companyId: company._id
+          }
+        );
+      } catch (logError) {
+        console.error('Failed to log admin creation:', logError);
+      }
+    }
+
+    console.log('Sending successful response');
+    res.status(201).json({
+      success: true,
+      message: 'Company created successfully' + (adminUser ? ' with admin user' : ''),
+      data: { 
+        company,
+        admin: adminUser ? {
+          id: adminUser._id,
+          userId: adminUser.userId,
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          email: adminUser.email,
+          role: adminUser.role,
+          companyId: adminUser.companyId
+        } : null
+      }
+    });
+  } catch (error: any) {
+    console.error('Company creation error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create company',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/companies/:id
+// @desc    Get company by ID
+// @access  Private/SuperAdmin
+router.get('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
+  try {
+    const company = await Company.findById(req.params.id);
+
+    if (!company) {
+      res.status(404).json({
+        success: false,
+        message: 'Company not found'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: { company }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch company',
+      error: error.message
+    });
+  }
+});
+
+// @route   PUT /api/companies/:id
+// @desc    Update company
+// @access  Private/SuperAdmin
+router.put('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
+  try {
+    const company = await Company.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!company) {
+      res.status(404).json({
+        success: false,
+        message: 'Company not found'
+      });
+      return;
+    }
+
+    await logUserAction(
+      req,
+      AuditAction.UPDATE,
+      'Company',
+      company._id.toString(),
+      { updates: req.body }
+    );
+
+    res.json({
+      success: true,
+      message: 'Company updated successfully',
+      data: { company }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update company',
+      error: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/companies/:id
+// @desc    Soft delete company
+// @access  Private/SuperAdmin
+router.delete('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
+  try {
+    const company = await Company.findByIdAndUpdate(
+      req.params.id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: req.user?._id
+      },
+      { new: true }
+    );
+
+    if (!company) {
+      res.status(404).json({
+        success: false,
+        message: 'Company not found'
+      });
+      return;
+    }
+
+    await logUserAction(
+      req,
+      AuditAction.DELETE,
+      'Company',
+      company._id.toString()
+    );
+
+    res.json({
+      success: true,
+      message: 'Company deleted successfully'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete company',
+      error: error.message
+    });
+  }
+});
+
+export default router;
