@@ -280,9 +280,10 @@ export default function DepartmentDetail() {
                 {users.length === 0 ? (
                   <p className="text-center py-8 text-gray-500">No users found</p>
                 ) : (
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
+                  <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                    <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                      <table className="w-full relative border-collapse">
+                        <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
@@ -312,8 +313,9 @@ export default function DepartmentDetail() {
                             </td>
                           </tr>
                         ))}
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -329,9 +331,10 @@ export default function DepartmentDetail() {
                 {grievances.length === 0 ? (
                   <p className="text-center py-8 text-gray-500">No grievances found</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b">
+                  <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                    <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                      <table className="w-full relative border-collapse">
+                        <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm border-b">
                         <tr className="whitespace-nowrap">
                           <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Application No</th>
                           <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Citizen Details</th>
@@ -426,8 +429,9 @@ export default function DepartmentDetail() {
                             </td>
                           </tr>
                         ))}
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -443,9 +447,10 @@ export default function DepartmentDetail() {
                 {appointments.length === 0 ? (
                   <p className="text-center py-8 text-gray-500">No appointments found</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b">
+                  <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                    <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                      <table className="w-full relative border-collapse">
+                        <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm border-b">
                         <tr className="whitespace-nowrap">
                           <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Appointment ID</th>
                           <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Citizen Details</th>
@@ -536,8 +541,9 @@ export default function DepartmentDetail() {
                             </td>
                           </tr>
                         ))}
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </CardContent>

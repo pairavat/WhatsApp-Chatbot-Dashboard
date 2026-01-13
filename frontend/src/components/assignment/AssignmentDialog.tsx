@@ -91,8 +91,15 @@ export default function AssignmentDialog({
 
   const handleAssign = async (userId: string) => {
     setAssigning(true);
+    
+    // Find the user being assigned to for better feedback
+    const assignedUser = users.find(u => u._id === userId);
+    const userName = assignedUser ? `${assignedUser.firstName} ${assignedUser.lastName}` : 'officer';
+    
+    // Show loading toast
+    const toastId = toast.loading(`Assigning to ${userName}...`);
+    
     try {
-      const assignedUser = users.find(u => u._id === userId);
       const userDeptId = assignedUser?.departmentId 
         ? (typeof assignedUser.departmentId === 'object' ? assignedUser.departmentId._id : assignedUser.departmentId)
         : undefined;
@@ -103,16 +110,16 @@ export default function AssignmentDialog({
       if (userDeptId && currentDepartmentId && userDeptId !== currentDepartmentId) {
         const newDept = departments.find(d => d._id === userDeptId);
         toast.success(
-          `${itemType === 'grievance' ? 'Grievance' : 'Appointment'} assigned and transferred to ${newDept?.name || 'new department'}`,
-          { duration: 4000 }
+          `${itemType === 'grievance' ? 'Grievance' : 'Appointment'} assigned to ${userName} and transferred to ${newDept?.name || 'new department'}`,
+          { id: toastId, duration: 4000 }
         );
       } else {
-        toast.success(`${itemType === 'grievance' ? 'Grievance' : 'Appointment'} assigned successfully`);
+        toast.success(`Successfully assigned to ${userName}!`, { id: toastId });
       }
       
       onClose();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to assign');
+      toast.error(error.message || 'Failed to assign', { id: toastId });
     } finally {
       setAssigning(false);
     }

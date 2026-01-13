@@ -16,12 +16,14 @@ import CreateDepartmentDialog from '@/components/department/CreateDepartmentDial
 import CreateUserDialog from '@/components/user/CreateUserDialog';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { Permission } from '@/lib/permissions';
+import { Permission, hasPermission } from '@/lib/permissions';
 import toast from 'react-hot-toast';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import GrievanceDetailDialog from '@/components/grievance/GrievanceDetailDialog';
 import AppointmentDetailDialog from '@/components/appointment/AppointmentDetailDialog';
 import AssignmentDialog from '@/components/assignment/AssignmentDialog';
+import MetricInfoDialog, { MetricInfo } from '@/components/analytics/MetricInfoDialog';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { 
   ArrowUpDown,
   Phone,
@@ -125,6 +127,8 @@ export default function Dashboard() {
   const [selectedGrievanceForAssignment, setSelectedGrievanceForAssignment] = useState<Grievance | null>(null);
   const [showAppointmentAssignment, setShowAppointmentAssignment] = useState(false);
   const [selectedAppointmentForAssignment, setSelectedAppointmentForAssignment] = useState<Appointment | null>(null);
+  const [showMetricDialog, setShowMetricDialog] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState<MetricInfo | null>(null);
 
   // Sorting State
   const [sortConfig, setSortConfig] = useState<{
@@ -392,20 +396,12 @@ export default function Dashboard() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <ProtectedButton
-              permission={Permission.READ_GRIEVANCE}
-              asChild
-              fallback={null}
-            >
+            {user && hasPermission(user.role, Permission.READ_GRIEVANCE) && (
               <TabsTrigger value="grievances">Grievances</TabsTrigger>
-            </ProtectedButton>
-            <ProtectedButton
-              permission={Permission.READ_APPOINTMENT}
-              asChild
-              fallback={null}
-            >
+            )}
+            {user && hasPermission(user.role, Permission.READ_APPOINTMENT) && (
               <TabsTrigger value="appointments">Appointments</TabsTrigger>
-            </ProtectedButton>
+            )}
             {(isCompanyAdmin || isDepartmentAdmin) && (
               <TabsTrigger value="departments">Departments</TabsTrigger>
             )}
@@ -680,116 +676,115 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-gray-50/50 border-b border-gray-100">
-                            <th className="px-6 py-4 text-left">
-                              <button 
-                                onClick={() => handleSort('name', 'departments')}
-                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                              >
-                                <span>Department Name</span>
-                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'name' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                              </button>
-                            </th>
-                            <th className="px-6 py-4 text-left">
-                              <button 
-                                onClick={() => handleSort('departmentId', 'departments')}
-                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                              >
-                                <span>Dept ID</span>
-                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'departmentId' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                              </button>
-                            </th>
-                            <th className="px-6 py-4 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider">Description</th>
-                            <th className="px-6 py-4 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-4 text-right font-bold text-[11px] text-gray-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {getSortedData(departments, 'departments').map((dept) => (
-                            <tr key={dept._id} className="hover:bg-gray-50/50 transition-all duration-200 group/row">
-                              <td className="px-6 py-5 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                                    <Building className="w-5 h-5" />
-                                  </div>
-                                  <div className="ml-3">
-                                    <div 
-                                      className="text-sm font-bold text-gray-900 group-hover:text-blue-600 cursor-pointer hover:underline"
-                                      onClick={() => {
-                                        setSelectedDepartmentId(dept._id);
-                                        router.push(`/dashboard/department/${dept._id}`);
-                                      }}
-                                    >
-                                      {dept.name}
+                      <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full relative border-collapse">
+                          <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm">
+                            <tr className="border-b border-gray-100">
+                              <th className="px-6 py-4 text-left">
+                                <button 
+                                  onClick={() => handleSort('name', 'departments')}
+                                  className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                                >
+                                  <span>Department Name</span>
+                                  <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'name' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                                </button>
+                              </th>
+                              <th className="px-6 py-4 text-left">
+                                <button 
+                                  onClick={() => handleSort('departmentId', 'departments')}
+                                  className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                                >
+                                  <span>Dept ID</span>
+                                  <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'departmentId' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                                </button>
+                              </th>
+                              <th className="px-6 py-4 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider">Description</th>
+                              <th className="px-6 py-4 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider">Status</th>
+                              <th className="px-6 py-4 text-right font-bold text-[11px] text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {getSortedData(departments, 'departments').map((dept) => (
+                              <tr key={dept._id} className="hover:bg-gray-50/50 transition-colors duration-150 group/row">
+                                <td className="px-6 py-5 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <div className="flex-shrink-0 h-10 w-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                                      <Building className="w-5 h-5" />
+                                    </div>
+                                    <div className="ml-3">
+                                      <div 
+                                        className="text-sm font-bold text-gray-900 group-hover:text-blue-600 cursor-pointer hover:underline"
+                                        onClick={() => {
+                                          setSelectedDepartmentId(dept._id);
+                                          router.push(`/dashboard/department/${dept._id}`);
+                                        }}
+                                      >
+                                        {dept.name}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-5 whitespace-nowrap">
-                                <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 uppercase">
-                                  {dept.departmentId}
-                                </span>
-                              </td>
-                              <td className="px-6 py-5">
-                                <p className="text-sm text-gray-500 truncate max-w-xs">{dept.description || 'No description provided'}</p>
-                              </td>
-                              <td className="px-6 py-5 whitespace-nowrap">
-                                <span className="px-2.5 py-0.5 inline-flex items-center text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 ring-1 ring-emerald-200 shadow-sm">
-                                  Active
-                                </span>
-                              </td>
-                              <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex justify-end items-center space-x-2 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                                    onClick={() => {
-                                      setEditingDepartment(dept);
-                                      setShowDepartmentDialog(true);
-                                    }}
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50"
-                                    onClick={() => {
-                                      setConfirmDialog({
-                                        isOpen: true,
-                                        title: 'Delete Department',
-                                        message: `Are you sure you want to delete "${dept.name}"? This action cannot be undone and will delete all associated users, grievances, and appointments.`,
-                                        onConfirm: async () => {
-                                          try {
-                                            const response = await departmentAPI.delete(dept._id);
-                                            if (response.success) {
-                                              toast.success('Department deleted successfully');
-                                              fetchDepartments();
+                                </td>
+                                <td className="px-6 py-5 whitespace-nowrap">
+                                  <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 uppercase">
+                                    {dept.departmentId}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <p className="text-sm text-gray-500 truncate max-w-xs">{dept.description || 'No description provided'}</p>
+                                </td>
+                                <td className="px-6 py-5 whitespace-nowrap">
+                                  <span className="px-2.5 py-0.5 inline-flex items-center text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 ring-1 ring-emerald-200 shadow-sm">
+                                    Active
+                                  </span>
+                                </td>
+                                <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
+                                  <div className="flex justify-end items-center space-x-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                      onClick={() => {
+                                        setEditingDepartment(dept);
+                                        setShowDepartmentDialog(true);
+                                      }}
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                      onClick={() => {
+                                        setConfirmDialog({
+                                          isOpen: true,
+                                          title: 'Delete Department',
+                                          message: `Are you sure you want to delete "${dept.name}"? This action cannot be undone and will delete all associated users, grievances, and appointments.`,
+                                          onConfirm: async () => {
+                                            try {
+                                              const response = await departmentAPI.delete(dept._id);
+                                              if (response.success) {
+                                                toast.success('Department deleted successfully');
+                                                fetchDepartments();
+                                              }
+                                            } catch (error: any) {
+                                              toast.error(error.message || 'Failed to delete department');
+                                            } finally {
+                                              setConfirmDialog(p => ({ ...p, isOpen: false }));
                                             }
-                                          } catch (error: any) {
-                                            toast.error(error.message || 'Failed to delete department');
-                                          } finally {
-                                            setConfirmDialog(p => ({ ...p, isOpen: false }));
-                                          }
-                                        },
-                                        variant: 'danger'
-                                      } as any);
-                                    }}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                                <div className="group-hover/row:hidden">
-                                  <MoreVertical className="w-5 h-5 text-gray-400 ml-auto" />
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                          },
+                                          variant: 'danger'
+                                        } as any);
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -827,185 +822,184 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-gray-50/50 border-b border-gray-100">
-                            <th className="px-6 py-4 text-left">
-                              <button 
-                                onClick={() => handleSort('firstName', 'users')}
-                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                              >
-                                <span>User Info</span>
-                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'firstName' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                              </button>
-                            </th>
-                            <th className="px-6 py-4 text-left">
-                              <button 
-                                onClick={() => handleSort('email', 'users')}
-                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                              >
-                                <span>Contact Information</span>
-                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'email' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                              </button>
-                            </th>
-                            <th className="px-6 py-4 text-left">
-                              <button 
-                                onClick={() => handleSort('role', 'users')}
-                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                              >
-                                <span>Role & Dept</span>
-                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'role' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                              </button>
-                            </th>
-                            <th className="px-6 py-4 text-left">
-                              <button 
-                                onClick={() => handleSort('isActive', 'users')}
-                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                              >
-                                <span>Status & Access</span>
-                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'isActive' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                              </button>
-                            </th>
-                            <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {getSortedData(users, 'users').map((u) => (
-                            <tr key={u._id} className="hover:bg-gray-50/50 transition-all duration-200 group/row">
-                              <td className="px-6 py-5 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="relative">
-                                    <div className="flex-shrink-0 h-12 w-12 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-full flex items-center justify-center text-white text-base font-bold shadow-sm border-2 border-white ring-1 ring-gray-100">
-                                      {u.firstName[0]}{u.lastName[0]}
+                      <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full relative border-collapse">
+                          <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm">
+                            <tr className="border-b border-gray-100">
+                              <th className="px-6 py-4 text-left">
+                                <button 
+                                  onClick={() => handleSort('firstName', 'users')}
+                                  className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                                >
+                                  <span>User Info</span>
+                                  <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'firstName' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                                </button>
+                              </th>
+                              <th className="px-6 py-4 text-left">
+                                <button 
+                                  onClick={() => handleSort('email', 'users')}
+                                  className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                                >
+                                  <span>Contact Information</span>
+                                  <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'email' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                                </button>
+                              </th>
+                              <th className="px-6 py-4 text-left">
+                                <button 
+                                  onClick={() => handleSort('role', 'users')}
+                                  className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                                >
+                                  <span>Role & Dept</span>
+                                  <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'role' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                                </button>
+                              </th>
+                              <th className="px-6 py-4 text-left">
+                                <button 
+                                  onClick={() => handleSort('isActive', 'users')}
+                                  className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                                >
+                                  <span>Status & Access</span>
+                                  <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'isActive' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                                </button>
+                              </th>
+                              <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {getSortedData(users, 'users').map((u) => (
+                              <tr key={u._id} className="hover:bg-gray-50/50 transition-colors duration-150 group/row">
+                                <td className="px-6 py-5 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <div className="relative">
+                                      <div className="flex-shrink-0 h-12 w-12 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-full flex items-center justify-center text-white text-base font-bold shadow-sm border-2 border-white ring-1 ring-gray-100">
+                                        {u.firstName[0]}{u.lastName[0]}
+                                      </div>
+                                      <div className={`absolute bottom-0 right-0 h-3.5 w-3.5 border-2 border-white rounded-full shadow-sm ${u.isActive ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                                     </div>
-                                    <div className={`absolute bottom-0 right-0 h-3.5 w-3.5 border-2 border-white rounded-full shadow-sm ${u.isActive ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                    <div className="ml-4">
+                                      <div className="text-sm font-bold text-gray-900 leading-tight">
+                                        {u.firstName} {u.lastName}
+                                      </div>
+                                      <div className="mt-1">
+                                        <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 uppercase tracking-tighter">
+                                          ID: {u.userId}
+                                        </span>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-bold text-gray-900 leading-tight">
-                                      {u.firstName} {u.lastName}
+                                </td>
+                                <td className="px-6 py-5 whitespace-nowrap">
+                                  <div className="flex flex-col space-y-1.5">
+                                    <div className="flex items-center text-sm text-blue-600 font-medium">
+                                      <Mail className="w-3.5 h-3.5 mr-2 text-blue-400" />
+                                      {u.email}
                                     </div>
-                                    <div className="mt-1">
-                                      <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 uppercase tracking-tighter">
-                                        ID: {u.userId}
+                                    {u.phone && (
+                                      <div className="flex items-center text-xs text-gray-500">
+                                        <Phone className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                                        {u.phone}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-5 whitespace-nowrap">
+                                  <div className="flex flex-col space-y-2">
+                                    <div className="flex">
+                                      <span className={`px-2.5 py-0.5 inline-flex items-center text-[10px] font-bold rounded-full border shadow-sm ${
+                                        u.role === 'COMPANY_ADMIN' ? 'bg-red-50 text-red-700 border-red-100 ring-1 ring-red-200' :
+                                        u.role === 'DEPARTMENT_ADMIN' ? 'bg-blue-50 text-blue-700 border-blue-100 ring-1 ring-blue-200' :
+                                        'bg-emerald-50 text-emerald-700 border-emerald-100 ring-1 ring-emerald-200'
+                                      }`}>
+                                        <Shield className="w-2.5 h-2.5 mr-1" />
+                                        {u.role.replace('_', ' ')}
                                       </span>
                                     </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-5 whitespace-nowrap">
-                                <div className="flex flex-col space-y-1.5">
-                                  <div className="flex items-center text-sm text-blue-600 font-medium">
-                                    <Mail className="w-3.5 h-3.5 mr-2 text-blue-400" />
-                                    {u.email}
-                                  </div>
-                                  {u.phone && (
-                                    <div className="flex items-center text-xs text-gray-500">
-                                      <Phone className="w-3.5 h-3.5 mr-2 text-gray-400" />
-                                      {u.phone}
+                                    <div className="flex items-center text-xs text-gray-500 font-medium ml-1">
+                                      <Building className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                                      {typeof u.departmentId === 'object' ? u.departmentId.name : 'All Company Access'}
                                     </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-6 py-5 whitespace-nowrap">
-                                <div className="flex flex-col space-y-2">
-                                  <div className="flex">
-                                    <span className={`px-2.5 py-0.5 inline-flex items-center text-[10px] font-bold rounded-full border shadow-sm ${
-                                      u.role === 'COMPANY_ADMIN' ? 'bg-red-50 text-red-700 border-red-100 ring-1 ring-red-200' :
-                                      u.role === 'DEPARTMENT_ADMIN' ? 'bg-blue-50 text-blue-700 border-blue-100 ring-1 ring-blue-200' :
-                                      'bg-emerald-50 text-emerald-700 border-emerald-100 ring-1 ring-emerald-200'
-                                    }`}>
-                                      <Shield className="w-2.5 h-2.5 mr-1" />
-                                      {u.role.replace('_', ' ')}
-                                    </span>
                                   </div>
-                                  <div className="flex items-center text-xs text-gray-500 font-medium ml-1">
-                                    <Building className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
-                                    {typeof u.departmentId === 'object' ? u.departmentId.name : 'All Company Access'}
+                                </td>
+                                <td className="px-6 py-5 whitespace-nowrap">
+                                  <div className="flex flex-col space-y-2.5">
+                                    <div className="flex items-center">
+                                      <div className={`h-2 w-2 rounded-full mr-2 ${u.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                                      <span className={`text-xs font-bold ${u.isActive ? 'text-green-700' : 'text-gray-500'}`}>
+                                        {u.isActive ? 'Active' : 'Inactive'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <button 
+                                        onClick={() => handleToggleUserStatus(u._id, u.isActive)}
+                                        className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${u.isActive ? 'bg-green-500' : 'bg-red-400'}`}
+                                      >
+                                        <span className="sr-only">Toggle user status</span>
+                                        <span
+                                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.isActive ? 'translate-x-5' : 'translate-x-1'}`}
+                                        />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleToggleUserStatus(u._id, u.isActive)}
+                                        className={`ml-2 text-[10px] font-bold uppercase tracking-wider ${u.isActive ? 'text-red-500 hover:text-red-600' : 'text-green-600 hover:text-green-700'} hover:underline transition-colors`}
+                                      >
+                                        {u.isActive ? 'Deactivate' : 'Activate'}
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-5 whitespace-nowrap">
-                                <div className="flex flex-col space-y-2.5">
-                                  <div className="flex items-center">
-                                    <div className={`h-2 w-2 rounded-full mr-2 ${u.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
-                                    <span className={`text-xs font-bold ${u.isActive ? 'text-green-700' : 'text-gray-500'}`}>
-                                      {u.isActive ? 'Active' : 'Inactive'}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <button 
-                                      onClick={() => handleToggleUserStatus(u._id, u.isActive)}
-                                      className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${u.isActive ? 'bg-green-500' : 'bg-red-400'}`}
+                                </td>
+                                <td className="px-6 py-5 whitespace-nowrap text-right">
+                                  <div className="flex justify-end items-center space-x-2">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                      title="Edit User"
                                     >
-                                      <span className="sr-only">Toggle user status</span>
-                                      <span
-                                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.isActive ? 'translate-x-5' : 'translate-x-1'}`}
-                                      />
-                                    </button>
-                                    <button 
-                                      onClick={() => handleToggleUserStatus(u._id, u.isActive)}
-                                      className={`ml-2 text-[10px] font-bold uppercase tracking-wider ${u.isActive ? 'text-red-500 hover:text-red-600' : 'text-green-600 hover:text-green-700'} hover:underline transition-colors`}
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-8 w-8 p-0 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                                      title="Change Permissions"
                                     >
-                                      {u.isActive ? 'Deactivate' : 'Activate'}
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-5 whitespace-nowrap text-right">
-                                <div className="flex justify-end items-center space-x-2 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                                    title="Edit User"
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-8 w-8 p-0 text-gray-500 hover:text-purple-600 hover:bg-purple-50"
-                                    title="Change Permissions"
-                                  >
-                                    <Shield className="w-4 h-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-8 w-8 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50"
-                                    title="Delete User"
-                                    onClick={() => {
-                                      setConfirmDialog({
-                                        isOpen: true,
-                                        title: 'Delete User',
-                                        message: `Are you sure you want to delete ${u.firstName} ${u.lastName}? This action cannot be undone.`,
-                                        onConfirm: async () => {
-                                          try {
-                                            const response = await userAPI.delete(u._id);
-                                            if (response.success) {
-                                              toast.success('User deleted successfully');
-                                              fetchUsers();
+                                      <Shield className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                      title="Delete User"
+                                      onClick={() => {
+                                        setConfirmDialog({
+                                          isOpen: true,
+                                          title: 'Delete User',
+                                          message: `Are you sure you want to delete ${u.firstName} ${u.lastName}? This action cannot be undone.`,
+                                          onConfirm: async () => {
+                                            try {
+                                              const response = await userAPI.delete(u._id);
+                                              if (response.success) {
+                                                toast.success('User deleted successfully');
+                                                fetchUsers();
+                                              }
+                                            } catch (error: any) {
+                                              toast.error(error.message || 'Failed to delete user');
+                                            } finally {
+                                              setConfirmDialog(p => ({ ...p, isOpen: false }));
                                             }
-                                          } catch (error: any) {
-                                            toast.error(error.message || 'Failed to delete user');
-                                          } finally {
-                                            setConfirmDialog(p => ({ ...p, isOpen: false }));
                                           }
-                                        }
-                                      });
-                                    }}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                                <div className="group-hover/row:hidden">
-                                  <MoreVertical className="w-5 h-5 text-gray-400 ml-auto" />
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                        } as any);
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1031,61 +1025,62 @@ export default function Dashboard() {
                     <p className="text-gray-500">No grievances found</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b">
-                        <tr className="whitespace-nowrap underline-offset-4">
-                          <th className="px-4 py-3 text-left">
-                            <button 
-                              onClick={() => handleSort('grievanceId', 'grievances')}
-                              className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                            >
-                              <span>App No</span>
-                              <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'grievanceId' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-left">
-                            <button 
-                              onClick={() => handleSort('citizenName', 'grievances')}
-                              className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                            >
-                              <span>Citizen</span>
-                              <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'citizenName' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-left">
-                            <button 
-                              onClick={() => handleSort('category', 'grievances')}
-                              className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                            >
-                              <span>Dept & Category</span>
-                              <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'category' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-left">
-                            <button 
-                              onClick={() => handleSort('status', 'grievances')}
-                              className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                            >
-                              <span>Status</span>
-                              <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'status' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-left">
-                            <button 
-                              onClick={() => handleSort('createdAt', 'grievances')}
-                              className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
-                            >
-                              <span>Raised On</span>
-                              <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'createdAt' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {getSortedData(grievances, 'grievances').map((grievance) => (
-                          <tr key={grievance._id} className="hover:bg-blue-50/30 transition-colors">
+                  <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                    <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                      <table className="w-full relative border-collapse">
+                        <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm border-b">
+                          <tr className="whitespace-nowrap underline-offset-4">
+                            <th className="px-4 py-3 text-left">
+                              <button 
+                                onClick={() => handleSort('grievanceId', 'grievances')}
+                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                              >
+                                <span>App No</span>
+                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'grievanceId' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                              </button>
+                            </th>
+                            <th className="px-4 py-3 text-left">
+                              <button 
+                                onClick={() => handleSort('citizenName', 'grievances')}
+                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                              >
+                                <span>Citizen</span>
+                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'citizenName' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                              </button>
+                            </th>
+                            <th className="px-4 py-3 text-left">
+                              <button 
+                                onClick={() => handleSort('category', 'grievances')}
+                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                              >
+                                <span>Dept & Category</span>
+                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'category' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                              </button>
+                            </th>
+                            <th className="px-4 py-3 text-left">
+                              <button 
+                                onClick={() => handleSort('status', 'grievances')}
+                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                              >
+                                <span>Status</span>
+                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'status' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                              </button>
+                            </th>
+                            <th className="px-4 py-3 text-left">
+                              <button 
+                                onClick={() => handleSort('createdAt', 'grievances')}
+                                className="group flex items-center space-x-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
+                              >
+                                <span>Raised On</span>
+                                <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'createdAt' ? 'text-blue-600' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                              </button>
+                            </th>
+                            <th className="px-4 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 bg-white">
+                          {getSortedData(grievances, 'grievances').map((grievance) => (
+                            <tr key={grievance._id} className="hover:bg-blue-50/50 transition-colors duration-150">
                             <td className="px-4 py-4">
                               <span className="font-bold text-sm text-blue-700">{grievance.grievanceId}</span>
                             </td>
@@ -1192,7 +1187,8 @@ export default function Dashboard() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                      </table>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1217,9 +1213,10 @@ export default function Dashboard() {
                     <p className="text-gray-500">No appointments found</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b">
+                  <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                    <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                      <table className="w-full relative border-collapse">
+                        <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm border-b">
                         <tr className="whitespace-nowrap">
                           <th className="px-4 py-3 text-left">
                             <button 
@@ -1377,8 +1374,9 @@ export default function Dashboard() {
                             </td>
                           </tr>
                         ))}
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1394,44 +1392,175 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 {loadingStats ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Loading analytics...</p>
+                  <div className="py-20">
+                    <LoadingSpinner size="lg" text="Loading analytics..." />
                   </div>
                 ) : stats ? (
-                  <div className="space-y-8">
-                    {/* Grievance Charts */}
+                  <div className="space-y-6">
+                    {/* KEY METRICS - Top Section */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Resolution Rate */}
+                      <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-lg transition-all cursor-pointer" onClick={() => {
+                        const resolutionRate = stats.grievances.total > 0 
+                          ? ((stats.grievances.resolved / stats.grievances.total) * 100).toFixed(1)
+                          : '0.0';
+                        setSelectedMetric({
+                          title: 'Resolution Rate',
+                          description: 'Percentage of grievances successfully resolved',
+                          formula: '(Resolved ÷ Total) × 100',
+                          interpretation: `${resolutionRate}% of grievances resolved. ${parseFloat(resolutionRate) >= 70 ? 'Good performance!' : 'Needs improvement.'}`,
+                          currentValue: `${resolutionRate}%`,
+                          benchmark: '70-85%',
+                          icon: 'trending'
+                        });
+                        setShowMetricDialog(true);
+                      }}>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-green-800">Resolution Rate</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold text-green-700">
+                            {stats.grievances.total > 0 ? ((stats.grievances.resolved / stats.grievances.total) * 100).toFixed(1) : '0.0'}%
+                          </div>
+                          <p className="text-xs text-green-600 mt-1">{stats.grievances.resolved} of {stats.grievances.total} resolved</p>
+                        </CardContent>
+                      </Card>
+
+                      {/* Completion Rate */}
+                      <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-lg transition-all cursor-pointer" onClick={() => {
+                        const completionRate = stats.appointments.total > 0 
+                          ? ((stats.appointments.completed / stats.appointments.total) * 100).toFixed(1)
+                          : '0.0';
+                        setSelectedMetric({
+                          title: 'Completion Rate',
+                          description: 'Percentage of appointments completed',
+                          formula: '(Completed ÷ Total) × 100',
+                          interpretation: `${completionRate}% completion rate. ${parseFloat(completionRate) >= 75 ? 'Excellent!' : 'Room for improvement.'}`,
+                          currentValue: `${completionRate}%`,
+                          benchmark: '75-90%',
+                          icon: 'target'
+                        });
+                        setShowMetricDialog(true);
+                      }}>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-blue-800">Completion Rate</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold text-blue-700">
+                            {stats.appointments.total > 0 ? ((stats.appointments.completed / stats.appointments.total) * 100).toFixed(1) : '0.0'}%
+                          </div>
+                          <p className="text-xs text-blue-600 mt-1">{stats.appointments.completed} of {stats.appointments.total} completed</p>
+                        </CardContent>
+                      </Card>
+
+                      {/* SLA Compliance */}
+                      {stats.grievances.slaComplianceRate !== undefined && (
+                        <Card className="bg-gradient-to-br from-purple-50 to-violet-100 border-purple-200 hover:shadow-lg transition-all cursor-pointer" onClick={() => {
+                          const slaCompliance = stats.grievances.slaComplianceRate?.toFixed(1) || '0.0';
+                          setSelectedMetric({
+                            title: 'SLA Compliance',
+                            description: 'Service Level Agreement compliance rate',
+                            formula: '((Total - Breaches) ÷ Total) × 100',
+                            interpretation: `${slaCompliance}% SLA compliance. ${parseFloat(slaCompliance) >= 90 ? 'Outstanding!' : 'Focus on reducing resolution times.'}`,
+                            currentValue: `${slaCompliance}%`,
+                            benchmark: '90%+',
+                            icon: 'target'
+                          });
+                          setShowMetricDialog(true);
+                        }}>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-purple-800">SLA Compliance</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold text-purple-700">
+                              {stats.grievances.slaComplianceRate?.toFixed(1)}%
+                            </div>
+                            <p className="text-xs text-purple-600 mt-1">{stats.grievances.slaBreached || 0} breaches</p>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Avg Resolution Time */}
+                      {stats.grievances.avgResolutionDays !== undefined && (
+                        <Card className="bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200 hover:shadow-lg transition-all cursor-pointer" onClick={() => {
+                          const avgDays = stats.grievances.avgResolutionDays?.toFixed(1) || '0.0';
+                          setSelectedMetric({
+                            title: 'Avg Resolution Time',
+                            description: 'Average time to resolve grievances',
+                            formula: 'Sum(Resolution Time) ÷ Resolved Count',
+                            interpretation: `Average of ${avgDays} days. ${parseFloat(avgDays) <= 5 ? 'Excellent response time!' : 'Consider process improvements.'}`,
+                            currentValue: `${avgDays} days`,
+                            benchmark: '3-5 days',
+                            icon: 'trending'
+                          });
+                          setShowMetricDialog(true);
+                        }}>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-orange-800">Avg Resolution Time</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold text-orange-700">
+                              {stats.grievances.avgResolutionDays?.toFixed(1)}
+                            </div>
+                            <p className="text-xs text-orange-600 mt-1">Days</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+
+                    {/* STATUS DISTRIBUTION CHARTS */}
+
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-lg">Grievance Status Distribution</CardTitle>
+                          <CardTitle className="text-base">Grievance Status Distribution</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <ResponsiveContainer width="100%" height={300}>
+                          <ResponsiveContainer width="100%" height={280}>
                             <PieChart>
+                              <defs>
+                                <linearGradient id="grievancePending" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#FFBB28" stopOpacity={0.9}/>
+                                  <stop offset="95%" stopColor="#FFBB28" stopOpacity={0.7}/>
+                                </linearGradient>
+                                <linearGradient id="grievanceInProgress" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#0088FE" stopOpacity={0.9}/>
+                                  <stop offset="95%" stopColor="#0088FE" stopOpacity={0.7}/>
+                                </linearGradient>
+                                <linearGradient id="grievanceResolved" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#00C49F" stopOpacity={0.9}/>
+                                  <stop offset="95%" stopColor="#00C49F" stopOpacity={0.7}/>
+                                </linearGradient>
+                              </defs>
                               <Pie
                                 data={[
-                                  { name: 'Pending', value: stats.grievances.pending },
-                                  { name: 'In Progress', value: stats.grievances.inProgress },
-                                  { name: 'Resolved', value: stats.grievances.resolved }
+                                  { name: 'Pending', value: stats.grievances.pending, fill: 'url(#grievancePending)' },
+                                  { name: 'In Progress', value: stats.grievances.inProgress, fill: 'url(#grievanceInProgress)' },
+                                  { name: 'Resolved', value: stats.grievances.resolved, fill: 'url(#grievanceResolved)' }
                                 ].filter(item => item.value > 0)}
                                 cx="50%"
                                 cy="50%"
-                                labelLine={false}
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                outerRadius={80}
-                                fill="#8884d8"
+                                labelLine={true}
+                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                                outerRadius={90}
+                                innerRadius={50}
                                 dataKey="value"
+                                paddingAngle={2}
                               >
-                                {[
-                                  { name: 'Pending', value: stats.grievances.pending },
-                                  { name: 'In Progress', value: stats.grievances.inProgress },
-                                  { name: 'Resolved', value: stats.grievances.resolved }
-                                ].filter(item => item.value > 0).map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                                ))}
                               </Pie>
-                              <Tooltip />
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                                }}
+                              />
+                              <Legend 
+                                verticalAlign="bottom" 
+                                height={36}
+                                iconType="circle"
+                              />
                             </PieChart>
                           </ResponsiveContainer>
                         </CardContent>
@@ -1464,34 +1593,54 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-lg">Appointment Status Distribution</CardTitle>
+                          <CardTitle className="text-base">Appointment Status Distribution</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <ResponsiveContainer width="100%" height={300}>
+                          <ResponsiveContainer width="100%" height={280}>
                             <PieChart>
+                              <defs>
+                                <linearGradient id="appointmentPending" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#FFBB28" stopOpacity={0.9}/>
+                                  <stop offset="95%" stopColor="#FFBB28" stopOpacity={0.7}/>
+                                </linearGradient>
+                                <linearGradient id="appointmentConfirmed" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#0088FE" stopOpacity={0.9}/>
+                                  <stop offset="95%" stopColor="#0088FE" stopOpacity={0.7}/>
+                                </linearGradient>
+                                <linearGradient id="appointmentCompleted" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#00C49F" stopOpacity={0.9}/>
+                                  <stop offset="95%" stopColor="#00C49F" stopOpacity={0.7}/>
+                                </linearGradient>
+                              </defs>
                               <Pie
                                 data={[
-                                  { name: 'Pending', value: stats.appointments.pending },
-                                  { name: 'Confirmed', value: stats.appointments.confirmed },
-                                  { name: 'Completed', value: stats.appointments.completed }
+                                  { name: 'Pending', value: stats.appointments.pending, fill: 'url(#appointmentPending)' },
+                                  { name: 'Confirmed', value: stats.appointments.confirmed, fill: 'url(#appointmentConfirmed)' },
+                                  { name: 'Completed', value: stats.appointments.completed, fill: 'url(#appointmentCompleted)' }
                                 ].filter(item => item.value > 0)}
                                 cx="50%"
                                 cy="50%"
-                                labelLine={false}
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                outerRadius={80}
-                                fill="#8884d8"
+                                labelLine={true}
+                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                                outerRadius={90}
+                                innerRadius={50}
                                 dataKey="value"
+                                paddingAngle={2}
                               >
-                                {[
-                                  { name: 'Pending', value: stats.appointments.pending },
-                                  { name: 'Confirmed', value: stats.appointments.confirmed },
-                                  { name: 'Completed', value: stats.appointments.completed }
-                                ].filter(item => item.value > 0).map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                                ))}
                               </Pie>
-                              <Tooltip />
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                                }}
+                              />
+                              <Legend 
+                                verticalAlign="bottom" 
+                                height={36}
+                                iconType="circle"
+                              />
                             </PieChart>
                           </ResponsiveContainer>
                         </CardContent>
@@ -1525,11 +1674,11 @@ export default function Dashboard() {
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <Card>
                           <CardHeader>
-                            <CardTitle className="text-lg">Grievances by Priority</CardTitle>
+                            <CardTitle className="text-base">Grievances by Priority</CardTitle>
                             <CardDescription>Distribution of grievances by priority level</CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
+                            <ResponsiveContainer width="100%" height={250}>
                               <BarChart data={stats.grievances.byPriority}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="priority" />
@@ -1544,12 +1693,15 @@ export default function Dashboard() {
                         {stats.appointments.byDepartment && stats.appointments.byDepartment.length > 0 && (
                           <Card>
                             <CardHeader>
-                              <CardTitle className="text-lg">Appointments by Department</CardTitle>
+                              <CardTitle className="text-base">Appointments by Department</CardTitle>
                               <CardDescription>Distribution of appointments across departments</CardDescription>
                             </CardHeader>
                             <CardContent>
-                              <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={stats.appointments.byDepartment}>
+                              <ResponsiveContainer width="100%" height={250}>
+                                <BarChart data={stats.appointments.byDepartment.map(dept => ({
+                                  ...dept,
+                                  departmentName: dept.departmentName.replace(/\s+Department$/i, '').trim()
+                                }))}>
                                   <CartesianGrid strokeDasharray="3 3" />
                                   <XAxis dataKey="departmentName" angle={-45} textAnchor="end" height={100} />
                                   <YAxis />
@@ -1615,11 +1767,11 @@ export default function Dashboard() {
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <Card>
                           <CardHeader>
-                            <CardTitle className="text-lg">Grievance Trends (Last 7 Days)</CardTitle>
+                            <CardTitle className="text-base">Grievance Trends (Last 7 Days)</CardTitle>
                             <CardDescription>Daily grievance creation trend</CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
+                            <ResponsiveContainer width="100%" height={280}>
                               <AreaChart data={stats.grievances.daily}>
                                 <defs>
                                   <linearGradient id="colorGrievances" x1="0" y1="0" x2="0" y2="1">
@@ -1639,11 +1791,11 @@ export default function Dashboard() {
 
                         <Card>
                           <CardHeader>
-                            <CardTitle className="text-lg">Appointment Trends (Last 7 Days)</CardTitle>
+                            <CardTitle className="text-base">Appointment Trends (Last 7 Days)</CardTitle>
                             <CardDescription>Daily appointment creation trend</CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
+                            <ResponsiveContainer width="100%" height={280}>
                               <AreaChart data={stats.appointments.daily}>
                                 <defs>
                                   <linearGradient id="colorAppointments" x1="0" y1="0" x2="0" y2="1">
@@ -1663,86 +1815,155 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* Performance Metrics */}
+                    {/* Interactive Performance Metrics */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       <Card 
-                        className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all cursor-pointer transform hover:scale-105"
-                        onClick={() => setActiveTab('grievances')}
+                        className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl transition-all cursor-pointer hover:scale-105"
+                        onClick={() => {
+                          const resolutionRate = stats.grievances.total > 0 
+                            ? ((stats.grievances.resolved / stats.grievances.total) * 100).toFixed(1)
+                            : '0.0';
+                          setSelectedMetric({
+                            title: 'Resolution Rate',
+                            description: 'The percentage of grievances that have been successfully resolved out of all grievances received.',
+                            formula: '(Resolved Grievances ÷ Total Grievances) × 100',
+                            interpretation: `A resolution rate of ${resolutionRate}% means that ${stats.grievances.resolved} out of ${stats.grievances.total} grievances have been resolved. Industry benchmark is typically 70-85%. ${parseFloat(resolutionRate) >= 70 ? 'Your performance is good!' : 'Consider improving resolution processes.'}`,
+                            currentValue: `${resolutionRate}%`,
+                            benchmark: '70-85% (Industry Standard)',
+                            icon: 'trending'
+                          });
+                          setShowMetricDialog(true);
+                        }}
                       >
                         <CardHeader>
-                          <CardTitle className="text-sm font-medium text-green-800 flex items-center justify-between">
+                          <CardTitle className="text-sm font-semibold text-green-800 flex items-center justify-between">
                             <span>Resolution Rate</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-3xl font-bold text-green-700">{stats.grievances.resolutionRate}%</div>
-                          <p className="text-xs text-green-600 mt-1">
+                          <div className="text-4xl font-bold text-green-700">
+                            {stats.grievances.total > 0 
+                              ? ((stats.grievances.resolved / stats.grievances.total) * 100).toFixed(1)
+                              : '0.0'}%
+                          </div>
+                          <p className="text-sm text-green-600 mt-2 font-medium">
                             {stats.grievances.resolved} of {stats.grievances.total} resolved
                           </p>
+                          <p className="text-xs text-green-500 mt-1">Click for details</p>
                         </CardContent>
                       </Card>
 
                       <Card 
-                        className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all cursor-pointer transform hover:scale-105"
-                        onClick={() => setActiveTab('appointments')}
+                        className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl transition-all cursor-pointer hover:scale-105"
+                        onClick={() => {
+                          const completionRate = stats.appointments.total > 0 
+                            ? ((stats.appointments.completed / stats.appointments.total) * 100).toFixed(1)
+                            : '0.0';
+                          setSelectedMetric({
+                            title: 'Completion Rate',
+                            description: 'The percentage of appointments that have been successfully completed out of all scheduled appointments.',
+                            formula: '(Completed Appointments ÷ Total Appointments) × 100',
+                            interpretation: `A completion rate of ${completionRate}% indicates that ${stats.appointments.completed} out of ${stats.appointments.total} appointments were completed. A good completion rate is above 75%. ${parseFloat(completionRate) >= 75 ? 'Excellent performance!' : 'Consider reducing no-shows and cancellations.'}`,
+                            currentValue: `${completionRate}%`,
+                            benchmark: '75-90% (Target Range)',
+                            icon: 'target'
+                          });
+                          setShowMetricDialog(true);
+                        }}
                       >
                         <CardHeader>
-                          <CardTitle className="text-sm font-medium text-blue-800 flex items-center justify-between">
+                          <CardTitle className="text-sm font-semibold text-blue-800 flex items-center justify-between">
                             <span>Completion Rate</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-3xl font-bold text-blue-700">{stats.appointments.completionRate}%</div>
-                          <p className="text-xs text-blue-600 mt-1">
+                          <div className="text-4xl font-bold text-blue-700">
+                            {stats.appointments.total > 0 
+                              ? ((stats.appointments.completed / stats.appointments.total) * 100).toFixed(1)
+                              : '0.0'}%
+                          </div>
+                          <p className="text-sm text-blue-600 mt-2 font-medium">
                             {stats.appointments.completed} of {stats.appointments.total} completed
                           </p>
+                          <p className="text-xs text-blue-500 mt-1">Click for details</p>
                         </CardContent>
                       </Card>
 
                       {stats.grievances.slaComplianceRate !== undefined && (
                         <Card 
-                          className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-all cursor-pointer transform hover:scale-105"
-                          onClick={() => setActiveTab('analytics')}
+                          className="bg-gradient-to-br from-purple-50 to-violet-100 border-purple-200 hover:shadow-xl transition-all cursor-pointer hover:scale-105"
+                          onClick={() => {
+                            const slaBreaches = stats.grievances.slaBreached || 0;
+                            const slaCompliance = stats.grievances.slaComplianceRate?.toFixed(1) || '0.0';
+                            setSelectedMetric({
+                              title: 'SLA Compliance',
+                              description: 'Service Level Agreement compliance measures the percentage of grievances resolved within the defined time frame.',
+                              formula: '((Total Grievances - SLA Breaches) ÷ Total Grievances) × 100',
+                              interpretation: `An SLA compliance of ${slaCompliance}% means ${stats.grievances.total - slaBreaches} out of ${stats.grievances.total} grievances were resolved within the SLA timeframe. ${slaBreaches} grievances breached the SLA. Target is 90%+ compliance. ${parseFloat(slaCompliance) >= 90 ? 'Outstanding compliance!' : 'Focus on reducing resolution times.'}`,
+                              currentValue: `${slaCompliance}%`,
+                              benchmark: '90%+ (Target)',
+                              icon: 'target'
+                            });
+                            setShowMetricDialog(true);
+                          }}
                         >
                           <CardHeader>
-                            <CardTitle className="text-sm font-medium text-purple-800 flex items-center justify-between">
+                            <CardTitle className="text-sm font-semibold text-purple-800 flex items-center justify-between">
                               <span>SLA Compliance</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <div className="text-3xl font-bold text-purple-700">{stats.grievances.slaComplianceRate}%</div>
-                            <p className="text-xs text-purple-600 mt-1">
+                            <div className="text-4xl font-bold text-purple-700">
+                              {stats.grievances.slaComplianceRate?.toFixed(1)}%
+                            </div>
+                            <p className="text-sm text-purple-600 mt-2 font-medium">
                               {stats.grievances.slaBreached || 0} breaches
                             </p>
+                            <p className="text-xs text-purple-500 mt-1">Click for details</p>
                           </CardContent>
                         </Card>
                       )}
 
                       {stats.grievances.avgResolutionDays !== undefined && (
                         <Card 
-                          className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-all cursor-pointer transform hover:scale-105"
-                          onClick={() => setActiveTab('analytics')}
+                          className="bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200 hover:shadow-xl transition-all cursor-pointer hover:scale-105"
+                          onClick={() => {
+                            const avgDays = stats.grievances.avgResolutionDays?.toFixed(1) || '0.0';
+                            setSelectedMetric({
+                              title: 'Avg Resolution Time',
+                              description: 'The average number of days taken to resolve a grievance from the time it was created to resolution.',
+                              formula: 'Sum of (Resolution Date - Creation Date) ÷ Number of Resolved Grievances',
+                              interpretation: `On average, it takes ${avgDays} days to resolve a grievance. Industry best practice is 3-5 days for standard grievances. ${parseFloat(avgDays) <= 5 ? 'Excellent response time!' : 'Consider streamlining resolution processes to reduce time.'}`,
+                              currentValue: `${avgDays} days`,
+                              benchmark: '3-5 days (Best Practice)',
+                              icon: 'calculator'
+                            });
+                            setShowMetricDialog(true);
+                          }}
                         >
                           <CardHeader>
-                            <CardTitle className="text-sm font-medium text-orange-800 flex items-center justify-between">
+                            <CardTitle className="text-sm font-semibold text-orange-800 flex items-center justify-between">
                               <span>Avg Resolution Time</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <div className="text-3xl font-bold text-orange-700">{stats.grievances.avgResolutionDays}</div>
-                            <p className="text-xs text-orange-600 mt-1">Days</p>
+                            <div className="text-4xl font-bold text-orange-700">
+                              {stats.grievances.avgResolutionDays?.toFixed(1)}
+                            </div>
+                            <p className="text-sm text-orange-600 mt-2 font-medium">Days</p>
+                            <p className="text-xs text-orange-500 mt-1">Click for details</p>
                           </CardContent>
                         </Card>
                       )}
@@ -1799,10 +2020,10 @@ export default function Dashboard() {
                         {stats.grievances.monthly && stats.grievances.monthly.length > 0 && (
                           <Card>
                             <CardHeader>
-                              <CardTitle className="text-lg">Grievance Trends (Last 6 Months)</CardTitle>
+                              <CardTitle className="text-base">Grievance Trends (Last 6 Months)</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <ResponsiveContainer width="100%" height={300}>
+                              <ResponsiveContainer width="100%" height={280}>
                                 <LineChart data={stats.grievances.monthly}>
                                   <CartesianGrid strokeDasharray="3 3" />
                                   <XAxis dataKey="month" />
@@ -1820,10 +2041,10 @@ export default function Dashboard() {
                         {stats.appointments.monthly && stats.appointments.monthly.length > 0 && (
                           <Card>
                             <CardHeader>
-                              <CardTitle className="text-lg">Appointment Trends (Last 6 Months)</CardTitle>
+                              <CardTitle className="text-base">Appointment Trends (Last 6 Months)</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <ResponsiveContainer width="100%" height={300}>
+                              <ResponsiveContainer width="100%" height={280}>
                                 <LineChart data={stats.appointments.monthly}>
                                   <CartesianGrid strokeDasharray="3 3" />
                                   <XAxis dataKey="month" />
@@ -2152,6 +2373,13 @@ export default function Dashboard() {
             }
           />
         )}
+
+        {/* Metric Info Dialog */}
+        <MetricInfoDialog
+          isOpen={showMetricDialog}
+          onClose={() => setShowMetricDialog(false)}
+          metric={selectedMetric}
+        />
       </main>
     </div>
   );
