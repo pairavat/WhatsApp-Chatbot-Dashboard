@@ -37,9 +37,11 @@ export default function AssignmentDialog({
   useEffect(() => {
     if (isOpen) {
       fetchDepartments();
-      // Reset users when dialog opens
-      setUsers([]);
+      fetchUsers(); // Fetch all users when dialog opens
       setSearchQuery('');
+    } else {
+      // Reset when dialog closes
+      setUsers([]);
     }
   }, [isOpen, companyId]);
 
@@ -53,13 +55,6 @@ export default function AssignmentDialog({
       }
     }
   }, [departments, currentDepartmentId]);
-
-  // Fetch users when department is selected
-  useEffect(() => {
-    if (selectedDepartment && isOpen) {
-      fetchUsers();
-    }
-  }, [selectedDepartment, isOpen]);
 
   const fetchDepartments = async () => {
     try {
@@ -76,17 +71,15 @@ export default function AssignmentDialog({
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch users (officers and employees)
+      // Fetch ALL users in the company
       const usersRes = await userAPI.getAll({ 
         companyId,
-        limit: 100
+        limit: 1000 // Increased limit to get all users
       });
       if (usersRes.success) {
-        // Filter to show only OFFICER and EMPLOYEE roles
-        const filteredUsers = usersRes.data.users.filter(
-          u => u.role === 'OFFICER' || u.role === 'EMPLOYEE'
-        );
-        setUsers(filteredUsers);
+        // Show all users in the company (no role filtering)
+        setUsers(usersRes.data.users);
+        console.log('Loaded users:', usersRes.data.users.length);
       }
     } catch (error) {
       toast.error('Failed to load users');
@@ -132,10 +125,10 @@ export default function AssignmentDialog({
   };
 
   const filteredUsers = users.filter(user => {
-    // Filter by department (required)
+    // Filter by selected department
     if (selectedDepartment) {
       const userDeptId = typeof user.departmentId === 'object' 
-        ? user.departmentId._id 
+        ? user.departmentId?._id 
         : user.departmentId;
       if (userDeptId !== selectedDepartment) return false;
     }
@@ -211,7 +204,7 @@ export default function AssignmentDialog({
                   const userDept = typeof user.departmentId === 'object' 
                     ? user.departmentId 
                     : null;
-                  const isCurrentAssignee = typeof currentAssignee === 'object' 
+                  const isCurrentAssignee = typeof currentAssignee === 'object' && currentAssignee !== null
                     ? currentAssignee._id === user._id 
                     : false;
 
