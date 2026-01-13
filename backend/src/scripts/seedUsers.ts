@@ -33,7 +33,7 @@ const seedUsers = async () => {
       {
         firstName: 'Anand',
         lastName: 'Jadhav',
-        email: 'ceo@zpamaravati.gov.in',
+        email: 'zp@portal.gov.in',
         password: 'Admin@123',
         phone: '+91-9876543200',
         role: UserRole.COMPANY_ADMIN,

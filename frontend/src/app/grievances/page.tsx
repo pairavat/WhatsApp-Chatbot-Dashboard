@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { grievanceAPI, Grievance } from '@/lib/api/grievance';
-import { FileText, MapPin, Phone, Calendar, Filter, Search, Eye } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { grievanceAPI, Grievance } from '../../lib/api/grievance';
+import { FileText, MapPin, Phone, Calendar, Filter, Search, Eye, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import CitizenDetailsModal from '@/components/grievance/CitizenDetailsModal';
+import CitizenDetailsModal from '../../components/grievance/CitizenDetailsModal';
+import AssignmentDialog from '../../components/assignment/AssignmentDialog';
 
 export default function GrievancesPage() {
   const { user } = useAuth();
@@ -13,11 +14,16 @@ export default function GrievancesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedGrievance, setSelectedGrievance] = useState<Grievance | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [grievanceToAssign, setGrievanceToAssign] = useState<Grievance | null>(null);
   const [filters, setFilters] = useState({
     status: 'all',
     category: 'all',
     search: ''
   });
+
+  // Extract companyId from user
+  const companyId = typeof user?.companyId === 'object' ? user.companyId._id : user?.companyId || '';
 
   useEffect(() => {
     fetchGrievances();
@@ -26,13 +32,26 @@ export default function GrievancesPage() {
   const fetchGrievances = async () => {
     try {
       setLoading(true);
-      const data = await grievanceAPI.getAll();
-      setGrievances(data);
+      const response = await grievanceAPI.getAll();
+      if (response.success) {
+        setGrievances(response.data.grievances);
+      }
     } catch (error) {
       toast.error('Failed to load grievances');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAssignClick = (grievance: Grievance) => {
+    setGrievanceToAssign(grievance);
+    setAssignDialogOpen(true);
+  };
+
+  const handleAssign = async (userId: string) => {
+    if (!grievanceToAssign) return;
+    await grievanceAPI.assign(grievanceToAssign._id, userId);
+    await fetchGrievances();
   };
 
   const handleViewDetails = (grievance: Grievance) => {
@@ -158,6 +177,7 @@ export default function GrievancesPage() {
                   <th className="px-6 py-4 text-left text-sm font-semibold">Category</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Description</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Priority</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Assigned To</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Created</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold">Actions</th>
@@ -197,6 +217,20 @@ export default function GrievancesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
+                      {grievance.assignedTo ? (
+                        <div className="flex items-center">
+                          <UserPlus className="w-4 h-4 mr-1 text-green-600" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {typeof grievance.assignedTo === 'object' 
+                              ? `${grievance.assignedTo.firstName} ${grievance.assignedTo.lastName}`
+                              : grievance.assignedTo}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500 italic">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(grievance.status)}`}>
                         {grievance.status}
                       </span>
@@ -208,13 +242,24 @@ export default function GrievancesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => handleViewDetails(grievance)}
-                        className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View Details
-                      </button>
+                      <div className="flex items-center justify-center space-x-2">
+                        {user?.role === 'COMPANY_ADMIN' && (
+                          <button
+                            onClick={() => handleAssignClick(grievance)}
+                            className="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                          >
+                            <UserPlus className="w-4 h-4 mr-1" />
+                            Assign
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleViewDetails(grievance)}
+                          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -232,6 +277,20 @@ export default function GrievancesPage() {
           setSelectedGrievance(null);
         }}
         grievance={selectedGrievance}
+      />
+
+      {/* Assignment Dialog */}
+      <AssignmentDialog
+        isOpen={assignDialogOpen}
+        onClose={() => {
+          setAssignDialogOpen(false);
+          setGrievanceToAssign(null);
+        }}
+        onAssign={handleAssign}
+        itemType="grievance"
+        itemId={grievanceToAssign?._id || ''}
+        companyId={companyId}
+        currentAssignee={grievanceToAssign?.assignedTo}
       />
     </div>
   );

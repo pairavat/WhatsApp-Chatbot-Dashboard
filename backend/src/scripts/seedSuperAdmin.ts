@@ -29,7 +29,7 @@ const seedSuperAdmin = async () => {
     const superAdmin = await User.create({
       firstName: 'Super',
       lastName: 'Admin',
-      email: 'admin@platform.com',
+      email: 'superadmin@platform.com',
       password: '111111', // Will be hashed automatically by pre-save hook
       role: UserRole.SUPER_ADMIN,
       isActive: true

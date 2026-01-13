@@ -257,7 +257,7 @@ router.put('/:id/status', requirePermission(Permission.UPDATE_GRIEVANCE), async 
 // @access  Private
 router.put('/:id/assign', requirePermission(Permission.ASSIGN_GRIEVANCE), async (req: Request, res: Response) => {
   try {
-    const { assignedTo } = req.body;
+    const { assignedTo, departmentId } = req.body;
 
     if (!assignedTo) {
       res.status(400).json({
@@ -267,13 +267,20 @@ router.put('/:id/assign', requirePermission(Permission.ASSIGN_GRIEVANCE), async 
       return;
     }
 
+    const updateData: any = {
+      assignedTo,
+      assignedAt: new Date(),
+      status: GrievanceStatus.ASSIGNED
+    };
+
+    // Update department if provided (department transfer)
+    if (departmentId) {
+      updateData.departmentId = departmentId;
+    }
+
     const grievance = await Grievance.findByIdAndUpdate(
       req.params.id,
-      {
-        assignedTo,
-        assignedAt: new Date(),
-        status: GrievanceStatus.ASSIGNED
-      },
+      updateData,
       { new: true }
     );
 
@@ -286,11 +293,15 @@ router.put('/:id/assign', requirePermission(Permission.ASSIGN_GRIEVANCE), async 
     }
 
     // Add to status history
+    const remarks = departmentId 
+      ? `Assigned to user and transferred to new department`
+      : `Assigned to user`;
+    
     grievance.statusHistory.push({
       status: GrievanceStatus.ASSIGNED,
       changedBy: req.user!._id,
       changedAt: new Date(),
-      remarks: `Assigned to user`
+      remarks
     });
 
     await grievance.save();
@@ -300,7 +311,7 @@ router.put('/:id/assign', requirePermission(Permission.ASSIGN_GRIEVANCE), async 
       AuditAction.ASSIGN,
       'Grievance',
       grievance._id.toString(),
-      { assignedTo }
+      { assignedTo, departmentId }
     );
 
     res.json({

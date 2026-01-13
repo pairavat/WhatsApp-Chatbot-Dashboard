@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import GrievanceDetailDialog from '@/components/grievance/GrievanceDetailDialog';
 import AppointmentDetailDialog from '@/components/appointment/AppointmentDetailDialog';
+import AssignmentDialog from '@/components/assignment/AssignmentDialog';
 
 const CHART_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -99,6 +100,10 @@ export default function Dashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showAppointmentDetail, setShowAppointmentDetail] = useState(false);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
+  const [showGrievanceAssignment, setShowGrievanceAssignment] = useState(false);
+  const [selectedGrievanceForAssignment, setSelectedGrievanceForAssignment] = useState<Grievance | null>(null);
+  const [showAppointmentAssignment, setShowAppointmentAssignment] = useState(false);
+  const [selectedAppointmentForAssignment, setSelectedAppointmentForAssignment] = useState<Appointment | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -542,7 +547,7 @@ export default function Dashboard() {
                                 className="font-semibold text-lg text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                 onClick={() => {
                                   setSelectedDepartmentId(dept._id);
-                                  router.push(`/superadmin/department/${dept._id}?companyId=${typeof dept.companyId === 'object' ? dept.companyId._id : dept.companyId}`);
+                                  router.push(`/dashboard/department/${dept._id}`);
                                 }}
                               >
                                 {dept.name}
@@ -740,7 +745,21 @@ export default function Dashboard() {
                               </span>
                             )}
                           </div>
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedGrievanceForAssignment(grievance);
+                                setShowGrievanceAssignment(true);
+                              }}
+                              className="whitespace-nowrap"
+                            >
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              Assign
+                            </Button>
                             <select
                               value={grievance.status}
                               onChange={async (e) => {
@@ -826,7 +845,21 @@ export default function Dashboard() {
                             </p>
                             <p className="text-sm text-gray-600">{appointment.citizenPhone}</p>
                           </div>
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedAppointmentForAssignment(appointment);
+                                setShowAppointmentAssignment(true);
+                              }}
+                              className="whitespace-nowrap"
+                            >
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              Assign
+                            </Button>
                             <select
                               value={appointment.status}
                               onChange={async (e) => {
@@ -1578,6 +1611,55 @@ export default function Dashboard() {
             setSelectedAppointment(null);
           }}
         />
+
+        {/* Assignment Dialogs */}
+        {selectedGrievanceForAssignment && user?.companyId && (
+          <AssignmentDialog
+            isOpen={showGrievanceAssignment}
+            onClose={() => {
+              setShowGrievanceAssignment(false);
+              setSelectedGrievanceForAssignment(null);
+            }}
+            onAssign={async (userId: string, departmentId?: string) => {
+              await grievanceAPI.assign(selectedGrievanceForAssignment._id, userId, departmentId);
+              await fetchGrievances();
+              await fetchDashboardData();
+            }}
+            itemType="grievance"
+            itemId={selectedGrievanceForAssignment._id}
+            companyId={typeof user.companyId === 'object' ? user.companyId._id : user.companyId}
+            currentAssignee={selectedGrievanceForAssignment.assignedTo}
+            currentDepartmentId={
+              typeof selectedGrievanceForAssignment.departmentId === 'object' 
+                ? selectedGrievanceForAssignment.departmentId._id 
+                : selectedGrievanceForAssignment.departmentId
+            }
+          />
+        )}
+
+        {selectedAppointmentForAssignment && user?.companyId && (
+          <AssignmentDialog
+            isOpen={showAppointmentAssignment}
+            onClose={() => {
+              setShowAppointmentAssignment(false);
+              setSelectedAppointmentForAssignment(null);
+            }}
+            onAssign={async (userId: string, departmentId?: string) => {
+              await appointmentAPI.assign(selectedAppointmentForAssignment._id, userId, departmentId);
+              await fetchAppointments();
+              await fetchDashboardData();
+            }}
+            itemType="appointment"
+            itemId={selectedAppointmentForAssignment._id}
+            companyId={typeof user.companyId === 'object' ? user.companyId._id : user.companyId}
+            currentAssignee={selectedAppointmentForAssignment.assignedTo}
+            currentDepartmentId={
+              typeof selectedAppointmentForAssignment.departmentId === 'object' 
+                ? selectedAppointmentForAssignment.departmentId._id 
+                : selectedAppointmentForAssignment.departmentId
+            }
+          />
+        )}
       </main>
     </div>
   );

@@ -21,7 +21,7 @@ router.use(requireDatabaseConnection);
 router.put('/grievance/:id/assign', requirePermission(Permission.UPDATE_GRIEVANCE), async (req: Request, res: Response) => {
   try {
     const currentUser = req.user!;
-    const { assignedTo } = req.body;
+    const { assignedTo, departmentId } = req.body;
 
     if (!assignedTo) {
       return res.status(400).json({
@@ -91,6 +91,12 @@ router.put('/grievance/:id/assign', requirePermission(Permission.UPDATE_GRIEVANC
     // Update grievance
     grievance.assignedTo = assignedUser._id;
     grievance.assignedAt = new Date();
+    
+    // Update department if provided (department transfer)
+    if (departmentId) {
+      grievance.departmentId = departmentId;
+    }
+    
     await grievance.save();
 
     await logUserAction(
@@ -125,7 +131,7 @@ router.put('/grievance/:id/assign', requirePermission(Permission.UPDATE_GRIEVANC
 router.put('/appointment/:id/assign', requirePermission(Permission.UPDATE_APPOINTMENT), async (req: Request, res: Response) => {
   try {
     const currentUser = req.user!;
-    const { assignedTo } = req.body;
+    const { assignedTo, departmentId } = req.body;
 
     if (!assignedTo) {
       return res.status(400).json({
@@ -183,6 +189,12 @@ router.put('/appointment/:id/assign', requirePermission(Permission.UPDATE_APPOIN
     }
 
     appointment.assignedTo = assignedUser._id;
+    
+    // Update department if provided (department transfer)
+    if (departmentId) {
+      appointment.departmentId = departmentId;
+    }
+    
     await appointment.save();
 
     await logUserAction(

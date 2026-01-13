@@ -11,7 +11,7 @@ const seedZPAmaravati = async () => {
 
     // Connect to database
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dashboard');
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://agadge797_db_user:rAD72YBXkBJTv5xk@cluster0.85mfxwi.mongodb.net/dashboard');
     }
 
     // Check if ZP Amaravati company already exists
@@ -190,13 +190,13 @@ const seedZPAmaravati = async () => {
     }
 
     // Create or update company admin
-    const adminEmail = 'ceo@zpamaravati.gov.in';
+    const adminEmail = 'zp@portal.gov.in';
     let companyAdmin = await User.findOne({ email: adminEmail }).select('+password');
     
     if (!companyAdmin) {
       companyAdmin = await User.create({
-        firstName: 'Anand',
-        lastName: 'Jadhav',
+        firstName: 'Akshat',
+        lastName: 'Jain',
         email: adminEmail,
         password: 'Admin@123', // Pre-save hook will hash it
         phone: '+91-9876543200',

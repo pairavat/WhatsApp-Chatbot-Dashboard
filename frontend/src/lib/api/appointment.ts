@@ -80,6 +80,10 @@ export const appointmentAPI = {
     return apiClient.put(`/appointments/${id}/status`, { status, remarks });
   },
 
+  assign: async (id: string, assignedTo: string, departmentId?: string): Promise<{ success: boolean; data: { appointment: Appointment } }> => {
+    return apiClient.put(`/appointments/${id}/assign`, { assignedTo, departmentId });
+  },
+
   update: async (id: string, data: Partial<CreateAppointmentData>): Promise<{ success: boolean; data: { appointment: Appointment } }> => {
     return apiClient.put(`/appointments/${id}`, data);
   },

@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentAPI, Appointment } from '@/lib/api/appointment';
-import { Calendar, MapPin, Phone, Filter, Search, Eye, Clock } from 'lucide-react';
+import { Calendar, MapPin, Phone, Filter, Search, Eye, Clock, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CitizenDetailsModal from '@/components/grievance/CitizenDetailsModal';
+import AssignmentDialog from '@/components/assignment/AssignmentDialog';
 
 export default function AppointmentsPage() {
   const { user } = useAuth();
@@ -13,10 +14,15 @@ export default function AppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [appointmentToAssign, setAppointmentToAssign] = useState<Appointment | null>(null);
   const [filters, setFilters] = useState({
     status: 'all',
     search: ''
   });
+
+  // Extract companyId from user
+  const companyId = typeof user?.companyId === 'object' ? user.companyId._id : user?.companyId || '';
 
   useEffect(() => {
     fetchAppointments();
@@ -25,13 +31,26 @@ export default function AppointmentsPage() {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const data = await appointmentAPI.getAll();
-      setAppointments(data);
+      const response = await appointmentAPI.getAll();
+      if (response.success) {
+        setAppointments(response.data.appointments);
+      }
     } catch (error) {
       toast.error('Failed to load appointments');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAssignClick = (appointment: Appointment) => {
+    setAppointmentToAssign(appointment);
+    setAssignDialogOpen(true);
+  };
+
+  const handleAssign = async (userId: string) => {
+    if (!appointmentToAssign) return;
+    await appointmentAPI.assign(appointmentToAssign._id, userId);
+    await fetchAppointments();
   };
 
   const handleViewDetails = (appointment: Appointment) => {
@@ -131,6 +150,7 @@ export default function AppointmentsPage() {
                   <th className="px-6 py-4 text-left text-sm font-semibold">Citizen Name</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Purpose</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Date & Time</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Assigned To</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Created</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold">Actions</th>
@@ -172,6 +192,20 @@ export default function AppointmentsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
+                      {appointment.assignedTo ? (
+                        <div className="flex items-center">
+                          <UserPlus className="w-4 h-4 mr-1 text-green-600" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {typeof appointment.assignedTo === 'object' 
+                              ? `${appointment.assignedTo.firstName} ${appointment.assignedTo.lastName}`
+                              : appointment.assignedTo}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500 italic">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(appointment.status)}`}>
                         {appointment.status}
                       </span>
@@ -180,13 +214,24 @@ export default function AppointmentsPage() {
                       {new Date(appointment.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => handleViewDetails(appointment)}
-                        className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View Details
-                      </button>
+                      <div className="flex items-center justify-center space-x-2">
+                        {user?.role === 'COMPANY_ADMIN' && (
+                          <button
+                            onClick={() => handleAssignClick(appointment)}
+                            className="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                          >
+                            <UserPlus className="w-4 h-4 mr-1" />
+                            Assign
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleViewDetails(appointment)}
+                          className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -204,6 +249,20 @@ export default function AppointmentsPage() {
           setSelectedAppointment(null);
         }}
         appointment={selectedAppointment}
+      />
+
+      {/* Assignment Dialog */}
+      <AssignmentDialog
+        isOpen={assignDialogOpen}
+        onClose={() => {
+          setAssignDialogOpen(false);
+          setAppointmentToAssign(null);
+        }}
+        onAssign={handleAssign}
+        itemType="appointment"
+        itemId={appointmentToAssign?._id || ''}
+        companyId={companyId}
+        currentAssignee={appointmentToAssign?.assignedTo}
       />
     </div>
   );

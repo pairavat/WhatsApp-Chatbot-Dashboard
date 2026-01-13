@@ -215,7 +215,7 @@ const seedZPAmaravatiData = async () => {
 
     // Connect to database
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dashboard');
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://agadge797_db_user:rAD72YBXkBJTv5xk@cluster0.85mfxwi.mongodb.net/dashboard');
     }
 
     // Find ZP Amaravati company
