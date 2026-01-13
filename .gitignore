@@ -48,3 +48,8 @@ dump.rdb
 
 # Uploads
 uploads/
+
+# Seed scripts (contain sensitive data)
+backend/src/scripts/
+**/scripts/seed*.ts
+**/scripts/fix*.ts
