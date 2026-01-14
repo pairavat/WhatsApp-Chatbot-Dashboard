@@ -77,9 +77,12 @@ app.use(helmet({
 
 app.use(
   cors({
-    origin: "*"
+    origin: true,        // reflect request origin
+    credentials: true    // allow cookies / auth headers
   })
 );
+
+app.options("*", cors());
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
