@@ -7,6 +7,7 @@ export interface Grievance {
   departmentId?: string | { _id: string; name: string };
   citizenName: string;
   citizenPhone: string;
+  citizenEmail?: string;
   citizenWhatsApp?: string;
   description: string;
   category?: string;
