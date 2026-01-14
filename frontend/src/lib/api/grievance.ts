@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient } from "./client";
 
 export interface Grievance {
   _id: string;
@@ -11,7 +11,13 @@ export interface Grievance {
   citizenWhatsApp?: string;
   description: string;
   category?: string;
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  address?: string;
+  media?: string[];
+  location?: {
+    coordinates: [number, number];
+    address?: string;
+  };
+  priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   status: string;
   statusHistory?: Array<{
     status: string;
@@ -28,7 +34,9 @@ export interface Grievance {
   timeline?: Array<{
     action: string;
     details?: any;
-    performedBy?: string | { _id: string; firstName: string; lastName: string; role: string };
+    performedBy?:
+      | string
+      | { _id: string; firstName: string; lastName: string; role: string };
     timestamp: string;
   }>;
 }
@@ -41,7 +49,7 @@ export interface CreateGrievanceData {
   citizenWhatsApp?: string;
   description: string;
   category?: string;
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   location?: {
     coordinates: [number, number];
     address?: string;
@@ -71,37 +79,58 @@ export const grievanceAPI = {
     priority?: string;
   }): Promise<GrievancesResponse> => {
     const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.departmentId) queryParams.append('departmentId', params.departmentId);
-    if (params?.assignedTo) queryParams.append('assignedTo', params.assignedTo);
-    if (params?.priority) queryParams.append('priority', params.priority);
-    
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.departmentId)
+      queryParams.append("departmentId", params.departmentId);
+    if (params?.assignedTo) queryParams.append("assignedTo", params.assignedTo);
+    if (params?.priority) queryParams.append("priority", params.priority);
+
     return apiClient.get(`/grievances?${queryParams.toString()}`);
   },
 
-  getById: async (id: string): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
+  getById: async (
+    id: string
+  ): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
     return apiClient.get(`/grievances/${id}`);
   },
 
-  create: async (data: CreateGrievanceData): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
-    return apiClient.post('/grievances', data);
+  create: async (
+    data: CreateGrievanceData
+  ): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
+    return apiClient.post("/grievances", data);
   },
 
-  updateStatus: async (id: string, status: string, remarks?: string): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
+  updateStatus: async (
+    id: string,
+    status: string,
+    remarks?: string
+  ): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
     return apiClient.put(`/grievances/${id}/status`, { status, remarks });
   },
 
-  assign: async (id: string, assignedTo: string, departmentId?: string): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
-    return apiClient.put(`/grievances/${id}/assign`, { assignedTo, departmentId });
+  assign: async (
+    id: string,
+    assignedTo: string,
+    departmentId?: string
+  ): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
+    return apiClient.put(`/grievances/${id}/assign`, {
+      assignedTo,
+      departmentId,
+    });
   },
 
-  update: async (id: string, data: Partial<CreateGrievanceData>): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
+  update: async (
+    id: string,
+    data: Partial<CreateGrievanceData>
+  ): Promise<{ success: boolean; data: { grievance: Grievance } }> => {
     return apiClient.put(`/grievances/${id}`, data);
   },
 
-  delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+  delete: async (
+    id: string
+  ): Promise<{ success: boolean; message: string }> => {
     return apiClient.delete(`/grievances/${id}`);
-  }
+  },
 };
